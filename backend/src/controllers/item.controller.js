@@ -14,6 +14,16 @@ import {
 } from '../services/item.service.js';
 import { getUserRecords } from '../services/claim.service.js';
 
+/** 取当前用户对某物品「最近一次」认领的公开子集（供详情页展示状态/按钮），无则 null */
+function getMyClaim(item, userId) {
+  const mine = (item.claims || [])
+    .filter((c) => c.claimantId === userId)
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  if (mine.length === 0) return null;
+  const c = mine[0];
+  return { id: c.id, status: c.status, createdAt: c.createdAt };
+}
+
 /**
  * POST /api/upload —— 发布失物（需登录）
  * 必填：图片、当前失物存放地点(place)、物品描述
@@ -102,10 +112,12 @@ export async function getItemDetail(req, res, next) {
     const approvedClaim = (item.claims || []).find(
       (c) => user && c.claimantId === user.id && c.status === 'APPROVED'
     );
+    // 当前登录用户对该物品最近一次认领（供详情页展示认领状态/按钮）
+    const myClaim = user ? getMyClaim(item, user.id) : null;
     if (approvedClaim) {
-      return ok(res, { item: toClaimantItem(item) });
+      return ok(res, { item: { ...toClaimantItem(item), myClaim } });
     }
-    return ok(res, { item: toPublicItem(item) });
+    return ok(res, { item: { ...toPublicItem(item), myClaim } });
   } catch (err) {
     return next(err);
   }

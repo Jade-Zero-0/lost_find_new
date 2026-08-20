@@ -4,14 +4,20 @@ import { ToastProvider } from './components/Toast';
 import { api } from './lib/api';
 import { useRoute } from './lib/router';
 import { isLoggedIn } from './lib/user';
+import DetailPage from './pages/DetailPage';
 import HallPage from './pages/HallPage';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import MatchPage from './pages/MatchPage';
 import MyPage from './pages/MyPage';
 import PublishPage from './pages/PublishPage';
+import StatsPage from './pages/StatsPage';
 
 function renderPage(page: string) {
+  // 动态路由：物品详情 /items/:id
+  const detail = page.match(/^\/items\/([^/]+)$/);
+  if (detail) return <DetailPage id={decodeURIComponent(detail[1])} />;
+
   switch (page) {
     case '/login':
       return <LoginPage />;
@@ -19,6 +25,8 @@ function renderPage(page: string) {
       return <HallPage />;
     case '/match':
       return <MatchPage />;
+    case '/stats':
+      return <StatsPage />;
     case '/publish':
       return isLoggedIn() ? <PublishPage /> : <LoginPage hint="请先登录后再发布失物" />;
     case '/my':

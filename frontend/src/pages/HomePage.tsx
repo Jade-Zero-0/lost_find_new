@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import ItemCard from '../components/ItemCard';
 import SkeletonCard from '../components/SkeletonCard';
-import { api, type PublicItem } from '../lib/api';
+import { api, type PublicItem, type StatsData } from '../lib/api';
 import { Link } from '../lib/router';
 
 const FEATURES = [
@@ -27,6 +27,7 @@ export default function HomePage() {
   const [total, setTotal] = useState(0);
   const [openCount, setOpenCount] = useState(0);
   const [claimCount, setClaimCount] = useState(0);
+  const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,6 +48,13 @@ export default function HomePage() {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+    // 成果看板数据（找回率/归还数）；失败静默
+    api
+      .stats()
+      .then((res) => {
+        if (!cancelled) setStats(res);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -112,6 +120,36 @@ export default function HomePage() {
           </div>
         ))}
       </section>
+
+      {/* 成果看板速览：借鉴成果展示栏，突出找回率与归还数，引导进入完整看板 */}
+      {stats && (
+        <section className="overflow-hidden rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-cyan-50 p-6 shadow-sm sm:p-8">
+          <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
+            <div className="text-center sm:text-left">
+              <h2 className="text-xl font-bold text-slate-800">我们已经帮 {stats.totals.returned} 件失物找到了主人</h2>
+              <p className="mt-2 text-sm text-slate-500">
+                平台累计登记 {stats.totals.published} 件，物品找回率 <span className="font-bold text-indigo-600">{stats.returnRate}%</span>，
+                每一次归还都让校园更有温度。
+              </p>
+              <Link to="/stats" className="mt-4 inline-block rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-indigo-600 shadow-sm transition hover:shadow-md">
+                📊 查看完整成果看板 →
+              </Link>
+            </div>
+            <div className="grid shrink-0 grid-cols-3 gap-4 text-center">
+              {[
+                { num: stats.totals.published, label: '累计登记' },
+                { num: `${stats.returnRate}%`, label: '找回率' },
+                { num: stats.totals.returned, label: '成功归还' }
+              ].map((s) => (
+                <div key={s.label} className="rounded-2xl bg-white/70 px-4 py-3">
+                  <div className="text-2xl font-extrabold text-indigo-600">{s.num}</div>
+                  <div className="mt-1 text-xs text-slate-500">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section>
         <div className="mb-5 flex items-end justify-between">

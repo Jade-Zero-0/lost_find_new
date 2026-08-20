@@ -64,6 +64,8 @@ export interface PublicItem {
   claimApprovedAt?: number | null;
   claimedAt?: number | null;
   returnedAt?: number | null;
+  /** 详情接口附加：当前登录用户对该物品最近一次认领的状态（未登录/无认领为 null） */
+  myClaim?: { id: string; status: ClaimStatus; createdAt: number } | null;
 }
 
 export interface ClaimInfo {
@@ -125,6 +127,14 @@ export interface MatchResult {
   query: MatchQuery;
   count: number;
   candidates: MatchCandidate[];
+}
+
+/** 平台成果看板统计 */
+export interface StatsData {
+  totals: { published: number; open: number; claiming: number; claimed: number; returned: number };
+  returnRate: number;
+  trend7: { date: string; count: number }[];
+  topTips: { location: string; count: number }[];
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -278,5 +288,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ image })
     });
+  },
+
+  /** 平台成果看板：累计发布/找回率/近7天趋势/高频拾取地点 */
+  stats() {
+    return request<StatsData>('/api/stats');
   }
 };

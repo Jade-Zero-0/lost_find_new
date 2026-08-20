@@ -64,9 +64,20 @@ export default function ItemCard({
     }
   };
 
+  // 进入详情页（图片区与描述区可点击；底部认领按钮不触发跳转）
+  const goDetail = () => navigate(`/items/${item.id}`);
+
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl">
-      <div className="relative aspect-[3/2] overflow-hidden bg-slate-100">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={goDetail}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') goDetail();
+        }}
+        className="relative aspect-[3/2] cursor-pointer overflow-hidden bg-slate-100"
+      >
         <img
           src={imageSrc(item)}
           alt={item.description}
@@ -97,7 +108,12 @@ export default function ItemCard({
           />
           <span>{item.color}</span>
         </div>
-        <p className="line-clamp-2 flex-1 text-sm leading-relaxed text-slate-500">{item.description}</p>
+        <p
+          onClick={goDetail}
+          className="line-clamp-2 flex-1 cursor-pointer text-sm leading-relaxed text-slate-500 transition hover:text-slate-700"
+        >
+          {item.description}
+        </p>
 
         {/* AI 识别标签：类别 / 形状 / 材质 / 特征 / 文字，帮助失主快速辨认 */}
         {(item.category || item.shape || item.material || item.features || item.text) && (
@@ -136,9 +152,13 @@ export default function ItemCard({
         )}
 
         <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-          <span className="text-xs text-slate-400">
-            {timeAgo(item.createdAt)} · {item.pickerName}
-          </span>
+          <button
+            type="button"
+            onClick={goDetail}
+            className="text-xs font-medium text-slate-400 transition hover:text-indigo-600"
+          >
+            {timeAgo(item.createdAt)} · {item.pickerName} · 查看详情 ›
+          </button>
           {!own && item.status === 'OPEN' ? (
             <button
               type="button"
