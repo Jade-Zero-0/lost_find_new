@@ -1,6 +1,7 @@
 import * as MockAIProvider from './providers/mock.provider.js';
 import * as OpenAIProvider from './providers/openai.provider.js';
 import { analyzeLostItemImage as analyzeWithZhipu, getConfig as getZhipuConfig } from '../glmVisionService.js';
+import { analyzeLostItemImage as analyzeWithQwen, getConfig as getQwenConfig } from '../qwenVisionService.js';
 import { analyzeLostItemImage as analyzeWithDeepseek, getConfig as getDeepseekConfig } from '../deepseekVisionService.js';
 import { AiError, AI_ERROR_CODES } from './ai-errors.js';
 
@@ -43,6 +44,30 @@ const ZhipuFallbackProvider = {
   }
 };
 
+/** 通义千问 Qwen-VL Provider（DashScope，主：qwen-vl-plus） */
+const QwenProvider = {
+  name: 'qwen',
+  isConfigured: () => Boolean(getQwenConfig().apiKey),
+  async recognize(input) {
+    const result = await analyzeWithQwen(input.dataUrl || input.imagePath || input.imageBuffer);
+    return toAiTags(result, 'qwen', getQwenConfig().model);
+  }
+};
+
+/** 通义千问备用视觉模型 Provider（qwen-vl-max 高性能版）：只尝试 1 次 */
+const QwenFallbackProvider = {
+  name: 'qwen-fallback',
+  isConfigured: () => Boolean(getQwenConfig().apiKey),
+  async recognize(input) {
+    const cfg = getQwenConfig();
+    const result = await analyzeWithQwen(input.dataUrl || input.imagePath || input.imageBuffer, {
+      model: cfg.fallbackModel,
+      maxRetries: 0
+    });
+    return toAiTags(result, 'qwen-fallback', cfg.fallbackModel);
+  }
+};
+
 /**
  * DeepSeek V4 Provider（预留，默认不进入识别链路）
  * ⚠️ DeepSeek 官方 API 为纯文本模型，不支持图片输入；仅当 AI_PROVIDER=deepseek
@@ -63,6 +88,8 @@ const DeepSeekProvider = {
  */
 const PROVIDERS = {
   mock: MockAIProvider,
+  qwen: QwenProvider,
+  'qwen-fallback': QwenFallbackProvider,
   zhipu: ZhipuProvider,
   'zhipu-fallback': ZhipuFallbackProvider,
   deepseek: DeepSeekProvider,
@@ -72,14 +99,16 @@ const PROVIDERS = {
 /**
  * AI 调用链路：
  * - mock          → 仅离线模拟
- * - zhipu / auto  → 智谱 GLM-4.6V-Flash（只尝试 1 次）
- *                   → 失败（含超时/限流）切智谱 GLM-4.6V（备用，只尝试 1 次）
+ * - qwen          → 通义千问 qwen-vl-plus（只尝试 1 次）→ 失败切 qwen-vl-max（备用，只尝试 1 次）
+ * - zhipu         → 智谱 GLM-4.6V-Flash（只尝试 1 次）→ 失败切 GLM-4.6V（备用，只尝试 1 次）
+ * - auto          → 通义千问优先，整体失败再兜底智谱（跨厂商容灾）
  * - deepseek      → 仅 DeepSeek V4（官方 API 纯文本，不支持识图，仅预留）
  */
 const CHAINS = {
   mock: ['mock'],
+  qwen: ['qwen', 'qwen-fallback'],
   zhipu: ['zhipu', 'zhipu-fallback'],
-  auto: ['zhipu', 'zhipu-fallback'],
+  auto: ['qwen', 'qwen-fallback', 'zhipu', 'zhipu-fallback'],
   deepseek: ['deepseek'],
   openai: ['openai']
 };
@@ -123,6 +152,7 @@ export async function recognizeImage(input) {
 
   const fallbackToMock = process.env.AI_FALLBACK_TO_MOCK !== 'false';
   let lastErr = null;
+  let sawRateLimit = false;
 
   for (const name of chain) {
     const provider = PROVIDERS[name];
@@ -136,6 +166,7 @@ export async function recognizeImage(input) {
       return { ...tags, provider: tags.provider || name, model: tags.model || name };
     } catch (err) {
       lastErr = err;
+      if (err.code === AI_ERROR_CODES.RATE_LIMIT) sawRateLimit = true;
       console.warn(`[ai] ${name} 识别失败：${err.message}`);
     }
   }
@@ -143,13 +174,14 @@ export async function recognizeImage(input) {
   // 整条链路均失败（或全部因未配置 Key 被跳过）
   if (!lastErr) {
     throw new AiError(
-      '未配置任何可用的 AI 模型 API Key（请检查 GLM_API_KEY / DEEPSEEK_API_KEY）',
+      '未配置任何可用的 AI 模型 API Key（请检查 QWEN_API_KEY / GLM_API_KEY）',
       AI_ERROR_CODES.MISSING_KEY,
       502
     );
   }
-  // 限流：绝不静默降级 mock，直接返回友好错误
-  if (lastErr.code === AI_ERROR_CODES.RATE_LIMIT) {
+  // 限流：只要链路中任一环触发过 429，就绝不静默降级 mock，直接返回友好错误
+  // （避免后续 provider 的网络/超时错误覆盖掉限流信号，把假结果当真结果误导用户）
+  if (sawRateLimit) {
     throw new AiError('AI 识别请求过于频繁，请稍后重试', AI_ERROR_CODES.RATE_LIMIT, 429);
   }
   if (fallbackToMock) {
