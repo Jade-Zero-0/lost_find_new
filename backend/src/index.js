@@ -18,6 +18,7 @@ import itemRoutes from './routes/item.routes.js';
 import claimRoutes from './routes/claim.routes.js';
 import logRoutes from './routes/log.routes.js';
 import aiRoutes from './routes/ai.routes.js';
+import matchingRoutes from './routes/matching.routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -99,6 +100,7 @@ app.use('/api', itemRoutes);
 app.use('/api', claimRoutes);
 app.use('/api', logRoutes);
 app.use('/api', aiRoutes);
+app.use('/api', matchingRoutes);
 
 // 静态资源：上传图片 + 前端构建产物（生产模式：先构建 frontend/dist）
 app.use('/uploads', express.static(uploadDir));

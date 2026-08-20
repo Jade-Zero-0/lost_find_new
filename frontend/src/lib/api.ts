@@ -103,6 +103,30 @@ export interface MyItemsResult {
   claimedItems: ClaimedRow[];
 }
 
+/** 扫图找失物：AI 识别出的公开特征摘要 */
+export interface MatchQuery {
+  type: string;
+  color: string;
+  shape: string;
+  material: string;
+  features: string;
+  text: string;
+  confidence: number | null;
+}
+
+/** 扫图找失物：单个匹配候选（公开物品 + 匹配度 + 命中维度） */
+export interface MatchCandidate {
+  item: PublicItem;
+  score: number;
+  matched: string[];
+}
+
+export interface MatchResult {
+  query: MatchQuery;
+  count: number;
+  candidates: MatchCandidate[];
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken();
   const controller = new AbortController();
@@ -245,6 +269,14 @@ export const api = {
     return request<Record<string, never>>('/api/log/visit', {
       method: 'POST',
       body: JSON.stringify({ page })
+    });
+  },
+
+  /** 失主扫图找失物：上传物品图片，AI 提取特征后匹配现有公开失物 */
+  matchLostItems(image: string) {
+    return request<MatchResult>('/api/matching/search', {
+      method: 'POST',
+      body: JSON.stringify({ image })
     });
   }
 };

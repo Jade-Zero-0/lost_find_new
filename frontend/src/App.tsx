@@ -7,6 +7,7 @@ import { isLoggedIn } from './lib/user';
 import HallPage from './pages/HallPage';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
+import MatchPage from './pages/MatchPage';
 import MyPage from './pages/MyPage';
 import PublishPage from './pages/PublishPage';
 
@@ -16,6 +17,8 @@ function renderPage(page: string) {
       return <LoginPage />;
     case '/hall':
       return <HallPage />;
+    case '/match':
+      return <MatchPage />;
     case '/publish':
       return isLoggedIn() ? <PublishPage /> : <LoginPage hint="请先登录后再发布失物" />;
     case '/my':

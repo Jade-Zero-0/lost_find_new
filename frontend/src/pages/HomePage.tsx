@@ -75,6 +75,9 @@ export default function HomePage() {
           <Link to="/publish" className="w-full rounded-full border border-slate-300 bg-white px-8 py-3.5 text-center font-semibold text-slate-700 transition hover:border-blue-400 hover:text-blue-600 sm:w-auto">
             📤 发布失物
           </Link>
+          <Link to="/match" className="w-full rounded-full border border-indigo-300 bg-indigo-50 px-8 py-3.5 text-center font-semibold text-indigo-600 transition hover:border-indigo-400 hover:bg-indigo-100 sm:w-auto">
+            🔍 我是失主·识图找失物
+          </Link>
         </div>
 
         <div className="mx-auto mt-10 grid max-w-2xl grid-cols-3 gap-3">
