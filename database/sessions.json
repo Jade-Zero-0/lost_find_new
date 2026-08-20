@@ -1,0 +1,32 @@
+{
+  "sessions": {
+    "6f2e0cf060f2bbaa8020250c7f05f0bba3e45dcbda93f3c6": {
+      "userId": "admin",
+      "expiresAt": 1787077239530
+    },
+    "1725a39cea726a75f9c21c217bc92d6acc90c87d291e170d": {
+      "userId": "admin",
+      "expiresAt": 1787078590527
+    },
+    "3f628c9da12ebf4f52c27441cb504cc574f455a338dec0d6": {
+      "userId": "76f9cd0fffdf1e2a",
+      "expiresAt": 1787114617384
+    },
+    "01fe251a0030d3d18d0e98de65f750b4ceaa50e79562ff10": {
+      "userId": "admin",
+      "expiresAt": 1787124275603
+    },
+    "cffa343baee63c68142e14c8992713c37b0873d3b2e3466c": {
+      "userId": "userA",
+      "expiresAt": 1787124344541
+    },
+    "4156937654421967650bb2ffaaa7bb9507cc4052e085eee1": {
+      "userId": "76f9cd0fffdf1e2a",
+      "expiresAt": 1787125419874
+    },
+    "3d2109ba35819a00738f1df6e99c66f4c56ee9d83efe88be": {
+      "userId": "admin",
+      "expiresAt": 1787126185180
+    }
+  }
+}

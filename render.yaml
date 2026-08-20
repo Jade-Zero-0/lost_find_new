@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: ai-lost-found
+    runtime: node
+    region: singapore
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    autoDeploy: true
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "18"
+      - key: HOST
+        value: "0.0.0.0"
+      - key: PORT
+        value: "3001"
+      - key: NODE_ENV
+        value: production
+      - key: AI_PROVIDER
+        value: mock
+      - key: GLM_API_KEY
+        value: ""
+      - key: AI_FALLBACK_TO_MOCK
+        value: "true"
+      - key: VITE_API_BASE_URL
+        value: ""

@@ -1,0 +1,58 @@
+{
+  "users": [
+    {
+      "id": "userA",
+      "username": "userA",
+      "displayName": "用户A",
+      "passwordSalt": "7ad4fee26a38d6ce36f64f7389787ba2",
+      "passwordHash": "97253ab985373ae23cdf4138e3a7c9462b5ed64ba938f5d1223419dd437217b6",
+      "role": "user",
+      "createdAt": 1786472218091
+    },
+    {
+      "id": "userB",
+      "username": "userB",
+      "displayName": "用户B",
+      "passwordSalt": "eb89fed02306f471659e830e46308db1",
+      "passwordHash": "c66493d59a7c0f66ace294dbacdef81bb70a13871b0352b444c55e42a28b9153",
+      "role": "user",
+      "createdAt": 1786472218112
+    },
+    {
+      "id": "admin",
+      "username": "admin",
+      "displayName": "管理员",
+      "passwordSalt": "053ce7949bb9f951bbf91ab30ac8d30d",
+      "passwordHash": "facd010aaaaea5ab5a436a05f7b44d9a5d0e565ef2c1385a608e1f17faf63897",
+      "role": "admin",
+      "createdAt": 1786472218133
+    },
+    {
+      "id": "76f9cd0fffdf1e2a",
+      "username": "瑶jade",
+      "displayName": "瑶jade",
+      "passwordSalt": "cb267844282ac07dbd317cd461541410",
+      "passwordHash": "94b8d02dd3e07ca3de4a6de91b3727919287729d936f576bde3d8f89b98a96b6",
+      "role": "user",
+      "createdAt": 1786509815144
+    },
+    {
+      "id": "abc0f03aa27dc725",
+      "username": "L_test",
+      "displayName": "L_test",
+      "passwordSalt": "6f3d7d4ce958820cf0e82fa41fe6db88",
+      "passwordHash": "e8f316dbd052787d1b72c933c3b7fe16e353342f3da66fa4bb11c1994005a7d5",
+      "role": "user",
+      "createdAt": 1786510608882
+    },
+    {
+      "id": "bcf3e428242400fc",
+      "username": "123",
+      "displayName": "123",
+      "passwordSalt": "a1fd743160766274dd9a714d23760f63",
+      "passwordHash": "d36121464e39bbf7e54065d0d435881bbc5a5b18a8b6d8d6bc77ede78e399894",
+      "role": "user",
+      "createdAt": 1786520990169
+    }
+  ]
+}
