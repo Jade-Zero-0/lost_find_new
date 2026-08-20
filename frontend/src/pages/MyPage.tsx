@@ -3,12 +3,16 @@ import EmptyState from '../components/EmptyState';
 import { Spinner } from '../components/LoadingSpinner';
 import SkeletonCard from '../components/SkeletonCard';
 import { useToast } from '../components/Toast';
+import Modal from '../components/Modal';
+import StatusTimeline from '../components/StatusTimeline';
 import { api, type ClaimInfo, type ClaimedRow, type PendingClaimItem, type PickedItem } from '../lib/api';
 import { colorHex, timeAgo } from '../lib/format';
 import { imageSrc } from '../lib/image';
 import { Link } from '../lib/router';
 import { getCurrentUser, isAdmin } from '../lib/user';
 import type { ClaimStatus } from '../types';
+
+const CANCEL_REASONS = ['认错了，不是我的物品', '已经找到了', '暂时不需要', '其他原因'];
 
 const BASE_TABS = [
   { key: 'posts', label: '我的发布', icon: '📤' },
@@ -22,13 +26,15 @@ type TabKey = (typeof BASE_TABS)[number]['key'] | (typeof REVIEW_TAB)['key'];
 const CLAIM_TEXT: Record<ClaimStatus, string> = {
   PENDING: '审核中',
   APPROVED: '已通过',
-  REJECTED: '已拒绝'
+  REJECTED: '已拒绝',
+  CANCELLED: '已取消'
 };
 
 const CLAIM_STYLE: Record<ClaimStatus, string> = {
   PENDING: 'bg-amber-100 text-amber-700',
   APPROVED: 'bg-emerald-100 text-emerald-700',
-  REJECTED: 'bg-rose-100 text-rose-700'
+  REJECTED: 'bg-rose-100 text-rose-700',
+  CANCELLED: 'bg-slate-200 text-slate-500'
 };
 
 const STATUS_TEXT: Record<string, string> = {
@@ -68,6 +74,11 @@ export default function MyPage() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState('');
   const [confirmId, setConfirmId] = useState('');
+  // 取消认领弹窗：正在取消的 claimId、选中的原因
+  const [cancelClaimId, setCancelClaimId] = useState('');
+  const [cancelReason, setCancelReason] = useState(CANCEL_REASONS[0]);
+  const [cancelCustom, setCancelCustom] = useState('');
+  const [cancelling, setCancelling] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -119,6 +130,27 @@ export default function MyPage() {
       show(err instanceof Error ? err.message : '操作失败', 'error');
     } finally {
       setBusyId('');
+    }
+  };
+
+  const openCancel = (claimId: string) => {
+    setCancelClaimId(claimId);
+    setCancelReason(CANCEL_REASONS[0]);
+    setCancelCustom('');
+  };
+
+  const doCancel = async () => {
+    const reason = cancelReason === '其他原因' ? cancelCustom.trim() || '其他原因' : cancelReason;
+    setCancelling(true);
+    try {
+      await api.cancelClaim(cancelClaimId, reason);
+      show('已取消该认领申请');
+      setCancelClaimId('');
+      await load();
+    } catch (err) {
+      show(err instanceof Error ? err.message : '取消失败', 'error');
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -195,6 +227,22 @@ export default function MyPage() {
           {renderClaimsBlock(item.claims)}
         </div>
       )}
+      {item.status !== 'OPEN' && (
+        <div className="mt-3 border-t border-slate-100 pt-3">
+          <p className="mb-2 text-xs font-semibold text-slate-500">失物处理进度</p>
+          <StatusTimeline
+            steps={[
+              { label: '你发布了物品', at: item.createdAt },
+              { label: '收到认领申请', at: item.claimRequestedAt },
+              { label: '审核通过', at: item.claimApprovedAt },
+              {
+                label: item.status === 'RESOLVED' ? '已归还' : '失主确认领取',
+                at: item.status === 'RESOLVED' ? item.returnedAt ?? item.claimedAt : null
+              }
+            ]}
+          />
+        </div>
+      )}
     </div>
   );
 
@@ -269,7 +317,7 @@ export default function MyPage() {
           <EmptyState
             icon="📤"
             title="还没有发布记录"
-            desc="捡到东西了？发布到失物大厅，AI 会自动识别生成标签"
+            desc="捡到东西了？发布到寻物广场，AI 会自动识别生成标签"
             action={
               <Link to="/publish" className="btn-gradient inline-block rounded-full px-6 py-2.5 text-sm font-semibold text-white shadow-md">
                 去发布
@@ -283,10 +331,10 @@ export default function MyPage() {
         <EmptyState
           icon="🤝"
           title="还没有认领记录"
-          desc="在失物大厅看到疑似自己的物品？申请认领后会显示在这里"
+          desc="在寻物广场看到疑似自己的物品？申请认领后会显示在这里"
           action={
             <Link to="/hall" className="btn-gradient inline-block rounded-full px-6 py-2.5 text-sm font-semibold text-white shadow-md">
-              去失物大厅看看
+              去寻物广场看看
             </Link>
           }
         />
@@ -307,6 +355,20 @@ export default function MyPage() {
                   <span className="text-xs text-slate-400">{timeAgo(claim.createdAt)} 提交</span>
                 </div>
                 <p className="mt-2 line-clamp-1 text-sm text-slate-500">认领说明：{claim.note}</p>
+                {claim.status === 'PENDING' && (
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={() => openCancel(claim.id)}
+                      className="rounded-full border border-rose-200 bg-white px-3 py-1 text-xs font-medium text-rose-600 transition hover:bg-rose-50"
+                    >
+                      取消认领
+                    </button>
+                  </div>
+                )}
+                {claim.status === 'CANCELLED' && claim.cancelReason && (
+                  <p className="mt-2 text-xs text-slate-400">取消原因：{claim.cancelReason}</p>
+                )}
                 {claim.status === 'APPROVED' && item.place && (
                   <div className="mt-2 space-y-1.5">
                     <p className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
@@ -354,11 +416,62 @@ export default function MyPage() {
                     )}
                   </div>
                 )}
+                {claim.status !== 'REJECTED' && claim.status !== 'CANCELLED' && (
+                  <div className="mt-3 border-t border-slate-100 pt-3">
+                    <p className="mb-2 text-xs font-semibold text-slate-500">失物处理进度</p>
+                    <StatusTimeline
+                      steps={[
+                        { label: '拾取者发布物品', at: item.createdAt },
+                        { label: '你申请认领', at: claim.createdAt },
+                        { label: '拾取者审核通过', at: claim.status === 'APPROVED' ? claim.reviewedAt : null },
+                        {
+                          label: item.status === 'RESOLVED' ? '已归还' : '失主确认领取',
+                          at: item.status === 'RESOLVED' ? item.returnedAt ?? item.claimedAt : null
+                        }
+                      ]}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <Modal
+        open={!!cancelClaimId}
+        title="取消认领申请"
+        confirmText="确认取消"
+        confirmTone="danger"
+        loading={cancelling}
+        onConfirm={() => void doCancel()}
+        onClose={() => setCancelClaimId('')}
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-slate-600">请选择取消原因（帮助我们改进匹配）：</p>
+          <div className="space-y-2">
+            {CANCEL_REASONS.map((r) => (
+              <label key={r} className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50">
+                <input
+                  type="radio"
+                  name="cancelReason"
+                  checked={cancelReason === r}
+                  onChange={() => setCancelReason(r)}
+                />
+                {r}
+              </label>
+            ))}
+          </div>
+          {cancelReason === '其他原因' && (
+            <input
+              value={cancelCustom}
+              onChange={(e) => setCancelCustom(e.target.value)}
+              placeholder="请简单说明原因（可选）"
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+            />
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

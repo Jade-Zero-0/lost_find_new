@@ -20,10 +20,12 @@ export interface AiTags {
   text?: string;
   /** 识别置信度 0-1 */
   confidence?: number | null;
-  /** 识别来源：zhipu / mock */
+  /** 识别来源：zhipu / mock / user(用户修正) */
   provider?: string;
   /** 模型名 */
   model?: string;
+  /** 是否被用户手动修正过 */
+  corrected?: boolean;
 }
 
 export interface PublicItem {
@@ -70,6 +72,11 @@ export interface ClaimInfo {
   note: string;
   status: ClaimStatus;
   createdAt: number;
+  /** 审核（通过/拒绝）时间 */
+  reviewedAt?: number;
+  /** 认领者撤回时间与原因 */
+  cancelledAt?: number;
+  cancelReason?: string;
 }
 
 export interface PickedItem extends PublicItem {
@@ -181,6 +188,17 @@ export const api = {
     );
   },
 
+  /** 发布者手动修正 AI 识别结果（仅发布者本人） */
+  correctAi(
+    id: string,
+    patch: { type?: string; color?: string; shape?: string; feature?: string; material?: string; text?: string }
+  ) {
+    return request<{ item: PickedItem }>(`/api/items/${id}/ai`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch)
+    });
+  },
+
   lostItems(params?: { keyword?: string; type?: string; status?: string }) {
     const qs = new URLSearchParams();
     if (params?.keyword) qs.set('keyword', params.keyword);
@@ -203,6 +221,14 @@ export const api = {
 
   reject(claimId: string) {
     return request<{ claim: ClaimInfo }>(`/api/claims/${claimId}/reject`, { method: 'POST' });
+  },
+
+  /** 认领者本人撤回自己待审核的申请（可附取消原因） */
+  cancelClaim(claimId: string, reason?: string) {
+    return request<{ claim: ClaimInfo }>(`/api/claims/${claimId}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason || '' })
+    });
   },
 
   pendingClaims() {

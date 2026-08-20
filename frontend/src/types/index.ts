@@ -2,7 +2,7 @@ export type ItemType = '证件' | '电子产品' | '文具' | '衣物' | '水杯
 
 export type ItemStatus = 'OPEN' | 'CLAIMING' | 'CLAIMED' | 'RESOLVED' | 'CLOSED';
 
-export type ClaimStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type ClaimStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 
 export interface LostItem {
   id: string;

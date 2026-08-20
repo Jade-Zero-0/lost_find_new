@@ -2,6 +2,7 @@ import { fail, ok } from '../utils/response.js';
 import { saveBase64Image, deleteUploadedImage } from '../utils/image.js';
 import {
   confirmItemReturn,
+  correctItemAi,
   createItem,
   findDuplicateImage,
   getItemById,
@@ -128,6 +129,22 @@ export async function getMyItems(req, res, next) {
   try {
     const result = await getUserRecords(req.user.id);
     return ok(res, result);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * PATCH /api/items/:id/ai —— 发布者手动修正 AI 识别结果（需登录）
+ * 权限：仅发布者本人；可修正 type/color/shape/feature/material/text
+ */
+export async function correctAi(req, res, next) {
+  try {
+    const { type, color, shape, feature, material, text } = req.body || {};
+    const item = await correctItemAi(req.params.id, req.user.id, {
+      type, color, shape, feature, material, text
+    });
+    return ok(res, { item: toOwnerItem(item) });
   } catch (err) {
     return next(err);
   }

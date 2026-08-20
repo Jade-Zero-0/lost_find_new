@@ -4,7 +4,7 @@ import { clearAuth, getCurrentUser, isLoggedIn } from '../lib/user';
 
 const NAV = [
   { to: '/', label: '首页', icon: '🏠' },
-  { to: '/hall', label: '失物大厅', icon: '🧭' },
+  { to: '/hall', label: '寻物广场', icon: '🧭' },
   { to: '/publish', label: '发布失物', icon: '📤' },
   { to: '/my', label: '我的', icon: '👤' }
 ];

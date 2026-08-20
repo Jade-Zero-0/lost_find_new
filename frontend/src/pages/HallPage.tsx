@@ -44,7 +44,7 @@ export default function HallPage() {
   return (
     <div className="animate-fade-up space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800 sm:text-3xl">失物大厅</h1>
+        <h1 className="text-2xl font-bold text-slate-800 sm:text-3xl">寻物广场</h1>
         <p className="mt-1 text-sm text-slate-500">
           按类型筛选、关键词搜索；存放地点与详细地点已隐藏，认领通过后仅对申请者可见；📍 地点Tips 为公开提示
         </p>

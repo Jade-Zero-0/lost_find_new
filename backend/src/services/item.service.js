@@ -60,6 +60,11 @@ export function toClaimantItem(item) {
   const pub = toPublicItem(item);
   if (item.place !== undefined) pub.place = item.place;
   if (item.detailLocation !== undefined) pub.detailLocation = item.detailLocation;
+  // 认领通过者可见处理进度所需的时间节点（用于失物状态时间线）
+  pub.claimRequestedAt = item.claimRequestedAt ?? null;
+  pub.claimApprovedAt = item.claimApprovedAt ?? null;
+  pub.claimedAt = item.claimedAt ?? null;
+  pub.returnedAt = item.returnedAt ?? null;
   return pub;
 }
 
@@ -157,6 +162,61 @@ export async function findCachedAiTags(hash, excludeItemId) {
       i.aiTags.type
   );
   return hit ? hit.aiTags : null;
+}
+
+/**
+ * 发布者手动修正 AI 识别结果：
+ * - 仅发布者本人可修正自己发布物品的识别结果
+ * - 保留 AI 原始结果到 aiTagsOriginal（仅首次修正时保存），修正版写入 aiTags 并标记 corrected/provider=user
+ * - 同步更新用于列表/匹配的摊平字段（category/shape/material/features/color）
+ * @param {string} itemId
+ * @param {string} userId 当前登录用户 id（须为发布者）
+ * @param {object} patch 允许修正的字段：type/color/shape/feature/material/text
+ */
+export async function correctItemAi(itemId, userId, patch = {}) {
+  let result = null;
+  await updateDb(async (db) => {
+    const item = db.items.find((i) => i.id === itemId);
+    if (!item) {
+      throw Object.assign(new Error('物品不存在'), { status: 404 });
+    }
+    if (item.pickerId !== userId) {
+      throw Object.assign(new Error('只能修正自己发布物品的识别结果'), { status: 403 });
+    }
+
+    const prev = item.aiTags || {};
+    // 首次修正时留存 AI 原始结果，便于沉淀「AI 纠错数据集」
+    if (!item.aiTagsOriginal && item.aiStatus === 'completed') {
+      item.aiTagsOriginal = { ...prev };
+    }
+
+    const clean = (v) => (typeof v === 'string' ? v.trim() : v);
+    const next = {
+      ...prev,
+      type: clean(patch.type) ?? prev.type ?? '',
+      color: clean(patch.color) ?? prev.color ?? '',
+      shape: clean(patch.shape) ?? prev.shape ?? '',
+      feature: clean(patch.feature) ?? prev.feature ?? '',
+      material: clean(patch.material) ?? prev.material ?? '',
+      text: clean(patch.text) ?? prev.text ?? '',
+      corrected: true,
+      provider: 'user'
+    };
+
+    item.aiTags = next;
+    item.aiStatus = 'completed';
+    item.aiError = null;
+    // 同步摊平字段
+    item.category = next.type || item.category || '';
+    item.shape = next.shape || '';
+    item.material = next.material || '';
+    item.features = next.feature || '';
+    if (next.color) item.color = next.color;
+    item.updatedAt = Date.now();
+    result = item;
+    return db;
+  });
+  return result;
 }
 
 /**

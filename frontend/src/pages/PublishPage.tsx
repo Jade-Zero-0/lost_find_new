@@ -58,6 +58,10 @@ export default function PublishPage() {
   const [phase, setPhase] = useState<Phase>('form');
   const [done, setDone] = useState<DoneData | null>(null);
   const [error, setError] = useState('');
+  // AI 结果修正：是否展开编辑、编辑中的字段、保存中
+  const [editingAi, setEditingAi] = useState(false);
+  const [aiEdit, setAiEdit] = useState({ type: '', color: '', shape: '', feature: '', material: '', text: '' });
+  const [savingAi, setSavingAi] = useState(false);
 
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
@@ -136,7 +140,39 @@ export default function PublishPage() {
     setColor('');
     setError('');
     setDone(null);
+    setEditingAi(false);
+    setSavingAi(false);
     setPhase('form');
+  };
+
+  // 打开 AI 结果编辑：用当前识别结果填充表单
+  const startEditAi = () => {
+    const ai = done?.item.aiTags;
+    setAiEdit({
+      type: ai?.type || '',
+      color: ai?.color || '',
+      shape: ai?.shape || '',
+      feature: ai?.feature || '',
+      material: ai?.material || '',
+      text: ai?.text && ai.text !== '无' ? ai.text : ''
+    });
+    setEditingAi(true);
+  };
+
+  // 保存修正后的 AI 结果
+  const saveAi = async () => {
+    if (!done) return;
+    setSavingAi(true);
+    try {
+      const { item } = await api.correctAi(done.item.id, aiEdit);
+      setDone({ item: item as PublicItem & { place: string } });
+      setEditingAi(false);
+      show('识别结果已更新');
+    } catch (err) {
+      show(err instanceof Error ? err.message : '保存失败，请重试', 'error');
+    } finally {
+      setSavingAi(false);
+    }
   };
 
   // ===== 阶段一/二：上传中 / AI 分析中 =====
@@ -189,7 +225,7 @@ export default function PublishPage() {
         </div>
         <h2 className="mt-6 text-2xl font-bold text-slate-800">发布成功！</h2>
         <p className="mt-2 text-sm text-slate-500">
-          物品已登记到失物大厅；存放地点与详细地点已隐藏保存，认领审核通过后仅对申请者可见。
+          物品已登记到寻物广场；存放地点与详细地点已隐藏保存，认领审核通过后仅对申请者可见。
         </p>
 
         <div className={`mt-6 rounded-2xl border p-4 ${aiFailed ? 'border-amber-200 bg-amber-50/70' : 'border-indigo-100 bg-indigo-50/60'}`}>
@@ -238,9 +274,99 @@ export default function PublishPage() {
                       )}
                     </div>
                   )}
+                  {ai.corrected && (
+                    <p className="mt-3 text-[11px] text-slate-400">✏️ 该结果已由你手动修正</p>
+                  )}
                 </div>
               )}
 
+              {!editingAi ? (
+                <button
+                  type="button"
+                  onClick={startEditAi}
+                  className="mt-3 inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-white px-4 py-1.5 text-xs font-medium text-indigo-600 transition hover:bg-indigo-50"
+                >
+                  ✏️ 识别不准确？点击修改
+                </button>
+              ) : (
+                <div className="mt-3 rounded-xl border border-indigo-200 bg-white p-4 text-left">
+                  <p className="mb-3 text-xs font-semibold text-slate-500">修正 AI 识别结果（修正后将用于寻物广场展示与智能匹配）</p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-1 block text-xs text-slate-500">物品类型</span>
+                      <input
+                        value={aiEdit.type}
+                        onChange={(e) => setAiEdit((s) => ({ ...s, type: e.target.value }))}
+                        placeholder="例如：保温杯"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs text-slate-500">颜色</span>
+                      <input
+                        value={aiEdit.color}
+                        onChange={(e) => setAiEdit((s) => ({ ...s, color: e.target.value }))}
+                        placeholder="例如：黑色"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs text-slate-500">形状</span>
+                      <input
+                        value={aiEdit.shape}
+                        onChange={(e) => setAiEdit((s) => ({ ...s, shape: e.target.value }))}
+                        placeholder="例如：圆柱形"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs text-slate-500">材质</span>
+                      <input
+                        value={aiEdit.material}
+                        onChange={(e) => setAiEdit((s) => ({ ...s, material: e.target.value }))}
+                        placeholder="例如：不锈钢"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                      />
+                    </label>
+                    <label className="block sm:col-span-2">
+                      <span className="mb-1 block text-xs text-slate-500">外观特征</span>
+                      <input
+                        value={aiEdit.feature}
+                        onChange={(e) => setAiEdit((s) => ({ ...s, feature: e.target.value }))}
+                        placeholder="例如：杯身有白色 Logo"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                      />
+                    </label>
+                    <label className="block sm:col-span-2">
+                      <span className="mb-1 block text-xs text-slate-500">可识别文字（可选）</span>
+                      <input
+                        value={aiEdit.text}
+                        onChange={(e) => setAiEdit((s) => ({ ...s, text: e.target.value }))}
+                        placeholder="物品上印刷/贴的文字，没有可留空"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                      />
+                    </label>
+                  </div>
+                  <div className="mt-4 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      disabled={savingAi}
+                      onClick={() => setEditingAi(false)}
+                      className="rounded-full border border-slate-200 bg-white px-4 py-1.5 text-xs font-medium text-slate-600 transition hover:border-slate-300 disabled:opacity-50"
+                    >
+                      取消
+                    </button>
+                    <button
+                      type="button"
+                      disabled={savingAi}
+                      onClick={() => void saveAi()}
+                      className="rounded-full bg-indigo-600 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {savingAi ? '保存中…' : '保存修正'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </>
           )}
           {aiFailed && (
@@ -253,14 +379,14 @@ export default function PublishPage() {
           {(aiStatus === 'processing' || aiStatus === 'none') && (
             <div className="text-center">
               <p className="text-sm font-semibold text-slate-500">AI 分析仍在进行中</p>
-              <p className="mt-2 text-xs text-slate-500">物品已保存，可稍后在「我的」或失物大厅查看识别结果。</p>
+              <p className="mt-2 text-xs text-slate-500">物品已保存，可稍后在「我的」或寻物广场查看识别结果。</p>
             </div>
           )}
         </div>
 
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
           <Link to="/hall" className="btn-gradient rounded-full px-7 py-3 text-sm font-semibold text-white shadow-md">
-            去失物大厅看看
+            去寻物广场看看
           </Link>
           <button
             type="button"

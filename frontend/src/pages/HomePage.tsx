@@ -65,12 +65,12 @@ export default function HomePage() {
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-sm leading-relaxed text-slate-500 sm:text-base">
           AI寻物宝是面向校园的智能失物招领平台。拾取者上传照片，AI 自动识别生成物品标签；
-          失主在失物大厅浏览、申请认领，审核通过后获取存放位置，安全又高效。
+          失主在寻物广场浏览、申请认领，审核通过后获取存放位置，安全又高效。
         </p>
 
         <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link to="/hall" className="btn-gradient w-full rounded-full px-8 py-3.5 text-center font-semibold text-white shadow-lg sm:w-auto">
-            🧭 进入失物大厅
+            🧭 进入寻物广场
           </Link>
           <Link to="/publish" className="w-full rounded-full border border-slate-300 bg-white px-8 py-3.5 text-center font-semibold text-slate-700 transition hover:border-blue-400 hover:text-blue-600 sm:w-auto">
             📤 发布失物

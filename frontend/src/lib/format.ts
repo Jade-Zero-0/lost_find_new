@@ -9,6 +9,16 @@ export function timeAgo(ts: number): string {
   return `${day} 天前`;
 }
 
+/** 格式化为「8月20日 10:30」形式，用于状态时间线等场景 */
+export function formatDateTime(ts: number): string {
+  const d = new Date(ts);
+  const mm = d.getMonth() + 1;
+  const dd = d.getDate();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${mm}月${dd}日 ${hh}:${mi}`;
+}
+
 const COLOR_MAP: Record<string, string> = {
   黑色: '#1e293b',
   白色: '#f8fafc',

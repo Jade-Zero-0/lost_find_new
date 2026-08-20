@@ -67,16 +67,61 @@ export async function reviewClaim({ claimId, decision, user }) {
     const now = Date.now();
     if (decision === 'approve') {
       claim.status = 'APPROVED';
+      claim.reviewedAt = now;
       item.status = ITEM_STATUS.CLAIMED; // 已认领（等待申请者领取）
       item.claimantId = claim.claimantId;
       item.claimApprovedAt = now;
       item.claims.forEach((c) => {
-        if (c.id !== claimId && c.status === 'PENDING') c.status = 'REJECTED';
+        if (c.id !== claimId && c.status === 'PENDING') {
+          c.status = 'REJECTED';
+          c.reviewedAt = now;
+        }
       });
     } else {
       claim.status = 'REJECTED';
+      claim.reviewedAt = now;
       const hasActive = item.claims.some((c) => c.status === 'PENDING' || c.status === 'APPROVED');
       if (!hasActive) item.status = ITEM_STATUS.OPEN;
+    }
+    item.updatedAt = now;
+    result = { item, claim };
+    return db;
+  });
+  return result;
+}
+
+/**
+ * 取消认领：认领者本人撤回自己「待审核（PENDING）」的申请
+ * - 仅本人可撤回，且仅能撤回 PENDING 状态的申请（已通过/已拒绝不可撤回）
+ * - 记录取消原因（reason）与取消时间
+ * - 撤回后若该物品无其他活跃申请（PENDING/APPROVED），物品状态回到 OPEN
+ */
+export async function cancelClaim({ claimId, userId, reason }) {
+  let result = null;
+  await updateDb(async (db) => {
+    const item = db.items.find((i) => (i.claims || []).some((c) => c.id === claimId));
+    if (!item) {
+      throw Object.assign(new Error('认领申请不存在'), { status: 404 });
+    }
+    const claim = item.claims.find((c) => c.id === claimId);
+    if (!claim) {
+      throw Object.assign(new Error('认领申请不存在'), { status: 404 });
+    }
+    if (claim.claimantId !== userId) {
+      throw Object.assign(new Error('只能取消自己提交的认领申请'), { status: 403 });
+    }
+    if (claim.status !== 'PENDING') {
+      throw Object.assign(new Error('该申请已被处理，无法取消'), { status: 400 });
+    }
+
+    const now = Date.now();
+    claim.status = 'CANCELLED';
+    claim.cancelReason = reason || '';
+    claim.cancelledAt = now;
+    // 若无其他活跃申请，物品回到待认领
+    const hasActive = item.claims.some((c) => c.status === 'PENDING' || c.status === 'APPROVED');
+    if (!hasActive && item.status === ITEM_STATUS.CLAIMING) {
+      item.status = ITEM_STATUS.OPEN;
     }
     item.updatedAt = now;
     result = { item, claim };
