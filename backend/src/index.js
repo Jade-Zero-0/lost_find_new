@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { promises as fs } from 'node:fs';
 import { readDb } from './db.js';
 import { getUploadDir } from './utils/image.js';
+import { ensureSeedData } from './utils/seed-data.js';
 import { ensureSeedUsers } from './services/auth.service.js';
 import { recoverStuckAiItems } from './services/item.service.js';
 import { attachUser } from './middleware/auth.middleware.js';
@@ -56,6 +57,8 @@ app.use(express.json({ limit: jsonLimit }));
 app.use(express.urlencoded({ extended: true, limit: jsonLimit }));
 
 // 可选鉴权（挂载 req.user）+ 访问日志
+// 持久盘首启时填充种子数据（须在任何数据读写之前，避免读到空盘）
+await ensureSeedData();
 // 确保演示账号存在（用户表为空时自动创建）
 await ensureSeedUsers();
 // 清理上次进程中断残留的「处理中」AI 任务，避免前端无限等待
