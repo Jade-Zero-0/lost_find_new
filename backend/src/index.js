@@ -6,6 +6,8 @@ import { promises as fs } from 'node:fs';
 import { readDb } from './db.js';
 import { getUploadDir } from './utils/image.js';
 import { ensureSeedData } from './utils/seed-data.js';
+import { getDbDriver } from './utils/store-factory.js';
+import { connectMongo, closeMongo } from './utils/mongo-client.js';
 import { ensureSeedUsers } from './services/auth.service.js';
 import { recoverStuckAiItems } from './services/item.service.js';
 import { attachUser } from './middleware/auth.middleware.js';
@@ -57,7 +59,11 @@ app.use(express.json({ limit: jsonLimit }));
 app.use(express.urlencoded({ extended: true, limit: jsonLimit }));
 
 // 可选鉴权（挂载 req.user）+ 访问日志
-// 持久盘首启时填充种子数据（须在任何数据读写之前，避免读到空盘）
+// 使用 MongoDB 时先建连（尽早暴露连接/鉴权问题，避免首个请求才失败）
+if (getDbDriver() === 'mongo') {
+  await connectMongo();
+}
+// 持久盘/数据库首启时填充种子数据（须在任何数据读写之前，避免读到空库）
 await ensureSeedData();
 // 确保演示账号存在（用户表为空时自动创建）
 await ensureSeedUsers();
@@ -120,3 +126,16 @@ process.on('unhandledRejection', (reason) => {
 process.on('uncaughtException', (err) => {
   console.error('[backend] uncaughtException:', err);
 });
+
+// 优雅关闭：收到终止信号时先关 HTTP 再关数据库连接
+async function shutdown(signal) {
+  console.log(`[backend] 收到 ${signal}，正在优雅关闭...`);
+  server.close(async () => {
+    if (getDbDriver() === 'mongo') await closeMongo();
+    process.exit(0);
+  });
+  // 兜底：10s 内未正常关闭则强制退出
+  setTimeout(() => process.exit(0), 10_000).unref();
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

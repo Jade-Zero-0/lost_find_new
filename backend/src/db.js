@@ -1,4 +1,4 @@
-import { createStore } from './utils/json-store.js';
+import { createStore } from './utils/store-factory.js';
 
 /** 失物数据（含认领记录） */
 export const itemStore = createStore('lost_items.json', { items: [] });

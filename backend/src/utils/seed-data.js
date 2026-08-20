@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { getDataDir } from './json-store.js';
 import { getUploadDir } from './image.js';
+import { getDbDriver } from './store-factory.js';
+import { itemStore, usersStore, sessionsStore, logsStore } from '../db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -25,6 +27,14 @@ const SEED_FILES = [
   'access_logs.json'
 ];
 
+/** store <-> 种子文件 <-> 空值判定，用于 Mongo 首启灌种 */
+const MONGO_SEEDS = [
+  { store: itemStore, file: 'lost_items.json', isEmpty: (d) => !d || !Array.isArray(d.items) || d.items.length === 0 },
+  { store: usersStore, file: 'users.json', isEmpty: (d) => !d || !Array.isArray(d.users) || d.users.length === 0 },
+  { store: sessionsStore, file: 'sessions.json', isEmpty: (d) => !d || !d.sessions || Object.keys(d.sessions).length === 0 },
+  { store: logsStore, file: 'access_logs.json', isEmpty: (d) => !d || !Array.isArray(d.logs) || d.logs.length === 0 }
+];
+
 /** 原子复制单个文件：写临时文件 + rename，避免复制一半被中断留下损坏文件 */
 async function atomicCopy(source, targetDir, filename) {
   const raw = await fs.readFile(source);
@@ -35,15 +45,44 @@ async function atomicCopy(source, targetDir, filename) {
 
 /**
  * 首次启动时填充种子数据：
- * 当 DATA_DIR 指向的持久盘为空（缺少某数据文件）时，
- * 从仓库自带的 database/ 与 backend/uploads/ 复制对应文件过去。
- * - 仅复制「目标不存在」的文件，绝不覆盖持久盘上的既有数据。
- * - 采用「写临时文件 + rename」原子复制。
- * - 当数据/上传目录就是种子目录本身（未配置持久盘）时直接跳过。
+ * - DB_DRIVER=json：当 DATA_DIR 持久盘缺少某数据文件时，从仓库 database/ 复制过去；
+ * - DB_DRIVER=mongo：当某集合为空时，把仓库种子 JSON 灌入 MongoDB。
+ * 两种情况都「仅补空缺、绝不覆盖」既有数据。
+ * 上传图片始终从 backend/uploads/ 补到运行时 uploads 目录（图片仍是本地文件）。
  */
 export async function ensureSeedData() {
-  await seedJsonFiles();
+  if (getDbDriver() === 'mongo') {
+    await seedMongo();
+  } else {
+    await seedJsonFiles();
+  }
   await seedUploads();
+}
+
+/** MongoDB 首启灌种：集合为空则写入仓库种子数据（不覆盖已有数据） */
+async function seedMongo() {
+  const seedDir = getSeedDir();
+  for (const { store, file, isEmpty } of MONGO_SEEDS) {
+    let current;
+    try {
+      current = await store.read();
+    } catch (err) {
+      console.warn(`[seed] 读取 Mongo ${file} 失败，跳过灌种：`, err.message);
+      continue;
+    }
+    if (!isEmpty(current)) continue; // 已有数据，保留
+
+    let seed;
+    try {
+      const raw = await fs.readFile(path.join(seedDir, file), 'utf-8');
+      seed = JSON.parse(raw);
+    } catch {
+      continue; // 无种子文件：交给 store 默认空值兜底
+    }
+    if (isEmpty(seed)) continue; // 种子本身也是空的，无需写入
+    await store.write(seed);
+    console.log(`[seed] 已将种子数据 ${file} 灌入 MongoDB`);
+  }
 }
 
 /** 填充 JSON 数据文件到 DATA_DIR */
