@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * 通用模态对话框：用于二次确认、取消原因选择等场景。
@@ -47,7 +48,9 @@ export default function Modal({
         ? 'bg-emerald-600 hover:bg-emerald-700'
         : 'bg-blue-600 hover:bg-blue-700';
 
-  return (
+  // 用 Portal 渲染到 body，避免被祖先元素的 transform / hover 变换（如卡片 hover:-translate-y / scale）
+  // 影响 fixed 遮罩的定位基准，导致弹窗鼠标移动时闪烁、抖动。
+  return createPortal(
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 px-4 backdrop-blur-sm"
       onClick={() => !loading && onClose()}
@@ -77,6 +80,7 @@ export default function Modal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
