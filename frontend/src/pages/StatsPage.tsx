@@ -91,7 +91,7 @@ export default function StatsPage() {
       {/* 核心指标卡 */}
       <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {STAT_CARDS.map((c) => (
-          <div key={c.key} className="rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+          <div key={c.key} className="rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm">
             <div className="text-2xl">{c.emoji}</div>
             <div className={`mt-2 text-3xl font-extrabold ${c.color}`}>{data.totals[c.key]}</div>
             <div className="mt-1 text-xs text-slate-500">{c.label}</div>

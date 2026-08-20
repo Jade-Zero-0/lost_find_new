@@ -110,7 +110,7 @@ export default function HomePage() {
             style={{ animationDelay: `${idx * 90}ms` }}
           >
             <div
-              className="animate-floaty grid h-12 w-12 place-items-center rounded-2xl text-2xl"
+              className="grid h-12 w-12 place-items-center rounded-2xl text-2xl"
               style={{ background: 'linear-gradient(135deg,#eff6ff,#ecfeff)' }}
             >
               {f.icon}
