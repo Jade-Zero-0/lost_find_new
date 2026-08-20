@@ -99,10 +99,35 @@ export default function ItemCard({
         </div>
         <p className="line-clamp-2 flex-1 text-sm leading-relaxed text-slate-500">{item.description}</p>
 
-        {item.category && item.category !== item.type && (
-          <span className="self-start rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-600">
-            🤖 {item.category}
-          </span>
+        {/* AI 识别标签：类别 / 形状 / 材质 / 特征 / 文字，帮助失主快速辨认 */}
+        {(item.category || item.shape || item.material || item.features || item.text) && (
+          <div className="flex flex-wrap gap-1.5">
+            {item.category && item.category !== item.type && (
+              <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-600">
+                🤖 {item.category}
+              </span>
+            )}
+            {item.shape && item.shape !== '未知' && (
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                形状：{item.shape}
+              </span>
+            )}
+            {item.material && item.material !== '未知' && (
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                材质：{item.material}
+              </span>
+            )}
+            {item.text && item.text !== '无' && (
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                🔤 {item.text}
+              </span>
+            )}
+          </div>
+        )}
+        {item.features && (
+          <p className="line-clamp-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs leading-relaxed text-slate-500">
+            <span className="font-medium text-slate-600">特征：</span>{item.features}
+          </p>
         )}
         {item.locationTips && (
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">

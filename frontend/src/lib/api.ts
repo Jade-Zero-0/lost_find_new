@@ -55,6 +55,8 @@ export interface PublicItem {
   shape?: string;
   material?: string;
   features?: string;
+  /** AI 识别到的图中文字（学号/品牌等） */
+  text?: string;
   aiConfidence?: number | null;
   /** 认领闭环字段 */
   claimantId?: string | null;

@@ -14,7 +14,8 @@ export const ITEM_STATUS = {
   RESOLVED: 'RESOLVED' // 已归还（申请者确认已领取）
 };
 
-/** 公开字段：绝不包含任何私有信息（place/detailLocation/informationB/AI详细结果） */
+/** 公开字段：不含隐私地点信息（place/detailLocation/informationB）。
+ *  AI 识别的物品外观标签（category/shape/material/features/text）对外公开，帮助失主辨认。 */
 const PUBLIC_FIELDS = [
   'id',
   'imageUrl',
@@ -26,10 +27,14 @@ const PUBLIC_FIELDS = [
   'pickerName',
   'createdAt',
   'category',      // AI 公开标签（物品类别）
-  'aiStatus'       // 仅用于前端「AI 分析中」提示，不含 AI 详细结果
+  'shape',         // AI：形状
+  'material',      // AI：材质
+  'features',      // AI：外观特征
+  'aiConfidence',  // AI：置信度
+  'aiStatus'       // 仅用于前端「AI 分析中」提示
 ];
 
-/** 转换为对外公开的物品结构（普通用户可见；不含任何私有信息） */
+/** 转换为对外公开的物品结构（普通用户可见；不含隐私地点信息） */
 export function toPublicItem(item) {
   const pub = {};
   for (const key of PUBLIC_FIELDS) {
@@ -40,6 +45,9 @@ export function toPublicItem(item) {
     pub.aiStatus = item.aiTags && item.aiTags.type ? 'completed' : 'none';
   }
   if (!pub.category) pub.category = (item.aiTags && item.aiTags.type) || '';
+  // AI 识别到的图中文字（学号/品牌等），顶层未摊平，从 aiTags 取
+  const aiText = item.text ?? (item.aiTags && item.aiTags.text) ?? '';
+  if (aiText && aiText !== '无') pub.text = aiText;
   if (!pub.locationTips) pub.locationTips = '';
   if (!pub.status) pub.status = ITEM_STATUS.OPEN;
   pub.claimCount = Array.isArray(item.claims) ? item.claims.length : 0;
