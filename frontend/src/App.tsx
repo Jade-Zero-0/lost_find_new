@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import Layout from './components/Layout';
-import { PageLoader } from './components/LoadingSpinner';
 import { ToastProvider } from './components/Toast';
 import { api } from './lib/api';
 import { useRoute } from './lib/router';
@@ -30,27 +29,14 @@ function renderPage(page: string) {
 
 function PageView() {
   const route = useRoute();
-  const [page, setPage] = useState(route);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
     window.scrollTo({ top: 0 });
     // 页面访问上报（记录网页信息，稳妥方案：后端文件日志）
     void api.logVisit(route).catch(() => {});
-    const t = window.setTimeout(() => {
-      setPage(route);
-      setLoading(false);
-    }, 220);
-    return () => window.clearTimeout(t);
   }, [route]);
 
-  return (
-    <>
-      {renderPage(page)}
-      {loading && <PageLoader label="页面加载中" />}
-    </>
-  );
+  return renderPage(route);
 }
 
 export default function App() {

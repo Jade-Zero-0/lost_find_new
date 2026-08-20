@@ -1,14 +1,15 @@
 import { ok } from '../utils/response.js';
 import { getConfig as getZhipuConfig } from '../services/glmVisionService.js';
 import { getConfig as getDeepseekConfig } from '../services/deepseekVisionService.js';
+import { getActiveChain } from '../services/ai/ai.service.js';
 
 /** GET /api/ai/status —— 当前 AI 配置状态（不返回 Key 本身） */
 export function aiStatus(_req, res) {
   const zhipu = getZhipuConfig();
   const deepseek = getDeepseekConfig();
   const provider = process.env.AI_PROVIDER || 'mock';
-  const chain =
-    provider === 'zhipu' || provider === 'auto' ? ['zhipu', 'zhipu-fallback'] : [provider];
+  // 复用 ai.service 的链路定义，避免与实际调用链路不一致
+  const chain = getActiveChain();
   return ok(res, {
     provider,
     chain,

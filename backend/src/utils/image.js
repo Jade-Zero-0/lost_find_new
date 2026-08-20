@@ -6,11 +6,15 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
- * 上传图片目录：默认 backend/uploads；
- * 生产环境可通过环境变量 UPLOAD_DIR 指定持久化磁盘路径（如 /data/ai-lost-found/uploads）
+ * 上传图片目录，优先级：
+ * 1. UPLOAD_DIR 显式指定
+ * 2. DATA_DIR/uploads（生产只需配一个 DATA_DIR，数据与图片同盘持久化）
+ * 3. 开发默认 backend/uploads
  */
 export function getUploadDir() {
-  return process.env.UPLOAD_DIR ? path.resolve(process.env.UPLOAD_DIR) : path.resolve(__dirname, '../../uploads');
+  if (process.env.UPLOAD_DIR) return path.resolve(process.env.UPLOAD_DIR);
+  if (process.env.DATA_DIR) return path.resolve(process.env.DATA_DIR, 'uploads');
+  return path.resolve(__dirname, '../../uploads');
 }
 
 /** 单张图片大小上限（MB，默认 8；生产可通过 MAX_UPLOAD_MB 调整） */

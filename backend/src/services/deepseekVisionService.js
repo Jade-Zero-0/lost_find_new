@@ -18,6 +18,12 @@ const DEFAULT_MODEL = 'deepseek-v4-flash';
  * - 与智谱服务保持相同的 analyzeLostItemImage() 输入输出约定
  */
 
+/** 日志脱敏：防止接口返回内容或异常信息中意外回显 API Key */
+function redactSecret(text, secret) {
+  if (!secret || !text) return String(text || '');
+  return String(text).split(secret).join('[REDACTED]');
+}
+
 /** 集中读取环境变量（仅后端；生产环境由服务器注入） */
 export function getConfig() {
   return {
@@ -67,7 +73,7 @@ async function callDeepseek(cfg, dataUrl) {
 
   if (!res.ok) {
     const bodyText = await res.text().catch(() => '');
-    const snippet = String(bodyText || '').trim().slice(0, 200);
+    const snippet = redactSecret(String(bodyText || '').trim(), cfg.apiKey).slice(0, 200);
     const detail = snippet ? `：${snippet}` : '';
     if (res.status === 401 || res.status === 403) {
       throw new AiError('DeepSeek API Key 无效或无权限，请检查 DEEPSEEK_API_KEY 配置', AI_ERROR_CODES.AUTH, 502);

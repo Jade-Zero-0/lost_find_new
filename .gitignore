@@ -13,3 +13,6 @@ curl
 docs/
 Listings/
 Objects/
+# 本地临时验证/调试产物
+__*.txt
+__*.mjs

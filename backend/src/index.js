@@ -6,6 +6,7 @@ import { promises as fs } from 'node:fs';
 import { readDb } from './db.js';
 import { getUploadDir } from './utils/image.js';
 import { ensureSeedUsers } from './services/auth.service.js';
+import { recoverStuckAiItems } from './services/item.service.js';
 import { attachUser } from './middleware/auth.middleware.js';
 import { accessLog } from './middleware/log.middleware.js';
 import { errorHandler, notFound } from './middleware/error.middleware.js';
@@ -25,6 +26,12 @@ try {
 }
 
 const app = express();
+
+// 部署在反向代理（如 Render / Nginx）之后：信任代理，
+// 使 req.ip 取到 X-Forwarded-For 中的真实客户端 IP（限流按真实 IP 生效）。
+// 可用 TRUST_PROXY 覆盖（如 'loopback'、具体跳数或 'false'）。
+const trustProxy = process.env.TRUST_PROXY ?? '1';
+app.set('trust proxy', trustProxy === 'false' ? false : trustProxy === 'true' ? true : trustProxy);
 
 // ---- 生产环境配置（均可用环境变量覆盖）----
 // 监听地址：0.0.0.0 允许公网访问（仅本机调试可改为 127.0.0.1）
@@ -51,6 +58,8 @@ app.use(express.urlencoded({ extended: true, limit: jsonLimit }));
 // 可选鉴权（挂载 req.user）+ 访问日志
 // 确保演示账号存在（用户表为空时自动创建）
 await ensureSeedUsers();
+// 清理上次进程中断残留的「处理中」AI 任务，避免前端无限等待
+await recoverStuckAiItems();
 
 app.use(attachUser);
 app.use(accessLog);

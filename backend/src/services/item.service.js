@@ -118,6 +118,9 @@ export async function getItemById(id) {
  * aiStatus: 'processing' | 'completed' | 'failed'
  */
 export async function updateItemAi(itemId, { aiStatus, aiTags, aiError } = {}) {
+  // 先确认物品存在，避免物品不存在时仍触发一次全量重写（写放大）
+  const existing = await getItemById(itemId);
+  if (!existing) return null;
   await updateDb(async (db) => {
     const item = db.items.find((i) => i.id === itemId);
     if (!item) return db;
@@ -139,10 +142,40 @@ export async function updateItemAi(itemId, { aiStatus, aiTags, aiError } = {}) {
 }
 
 /**
- * 后台自动 AI 分析（上传保存图片后调用，fire-and-forget）
+ * 按图片内容哈希查找「已识别成功」的历史结果，用于缓存复用
+ * 命中后可直接套用其 aiTags，避免对同一张图重复调用模型（省时省费、避免重复触发限流）
  */
-export async function runAiAnalysis(itemId, dataUrl) {
+export async function findCachedAiTags(hash, excludeItemId) {
+  if (!hash) return null;
+  const db = await readDb();
+  const hit = db.items.find(
+    (i) =>
+      i.id !== excludeItemId &&
+      i.imageHash === hash &&
+      i.aiStatus === 'completed' &&
+      i.aiTags &&
+      i.aiTags.type
+  );
+  return hit ? hit.aiTags : null;
+}
+
+/**
+ * 后台自动 AI 分析（上传保存图片后调用，fire-and-forget）
+ * @param {string} itemId 物品 id
+ * @param {string} dataUrl 图片 dataURL
+ * @param {string} [imageHash] 图片内容 SHA-256，用于命中已识别结果的缓存
+ */
+export async function runAiAnalysis(itemId, dataUrl, imageHash) {
   try {
+    // 1. 缓存优先：相同图片此前已识别成功，直接复用，不再调用模型
+    const cached = await findCachedAiTags(imageHash, itemId);
+    if (cached) {
+      const aiTags = { ...cached, cached: true };
+      await updateItemAi(itemId, { aiStatus: 'completed', aiTags, aiError: null });
+      console.log(`[ai] 物品 ${itemId} 命中图片缓存(hash=${String(imageHash).slice(0, 12)})，复用识别结果`);
+      return { aiStatus: 'completed', aiTags, cached: true };
+    }
+    // 2. 未命中：调用模型识别
     const aiTags = await recognizeImage({ dataUrl });
     await updateItemAi(itemId, { aiStatus: 'completed', aiTags, aiError: null });
     console.log(`[ai] 物品 ${itemId} 识别完成`);
@@ -153,6 +186,30 @@ export async function runAiAnalysis(itemId, dataUrl) {
     console.warn(`[ai] 物品 ${itemId} 识别失败，已标记 aiStatus=failed：`, message);
     return { aiStatus: 'failed', aiError: message };
   }
+}
+
+/**
+ * 启动时恢复「卡死」的 AI 任务：
+ * fire-and-forget 的后台识别任务在进程重启时会丢失，导致对应物品永久停留在
+ * aiStatus='processing'。启动时把这些记录标记为 failed，让前端不再无限等待。
+ * @returns {Promise<number>} 被修复的记录数
+ */
+export async function recoverStuckAiItems() {
+  let fixed = 0;
+  await updateDb(async (db) => {
+    const now = Date.now();
+    for (const item of db.items) {
+      if (item.aiStatus === 'processing') {
+        item.aiStatus = 'failed';
+        item.aiError = '服务重启导致识别任务中断，请重新发布或稍后重试';
+        item.updatedAt = now;
+        fixed++;
+      }
+    }
+    return db;
+  });
+  if (fixed > 0) console.warn(`[ai] 启动清理：${fixed} 条卡在 processing 的记录已标记为 failed`);
+  return fixed;
 }
 
 /**

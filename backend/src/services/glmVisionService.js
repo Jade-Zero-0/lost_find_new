@@ -59,7 +59,8 @@ async function callZhipu(cfg, dataUrl, model) {
       },
       body: JSON.stringify({
         model,
-        temperature: 0.3,
+        // 结构化 JSON 抽取任务：温度 0 让输出更稳定、更少格式波动
+        temperature: 0,
         messages: [
           {
             role: 'user',

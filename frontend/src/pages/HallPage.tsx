@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import EmptyState from '../components/EmptyState';
 import ItemCard from '../components/ItemCard';
 import SkeletonCard from '../components/SkeletonCard';
@@ -13,38 +13,33 @@ export default function HallPage() {
   const [items, setItems] = useState<PublicItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const reqIdRef = useRef(0);
 
-  const load = async () => {
+  // 搜索与筛选下沉到后端；请求带序号，只采用最新一次结果，避免竞态
+  const load = async (kw: string, t: string) => {
+    const reqId = ++reqIdRef.current;
     setLoading(true);
     try {
-      const { items: list } = await api.lostItems();
+      const { items: list } = await api.lostItems({
+        keyword: kw.trim() || undefined,
+        type: t === '全部' ? undefined : t
+      });
+      if (reqId !== reqIdRef.current) return; // 已有更新的请求，丢弃旧结果
       setItems(list);
       setError('');
     } catch (err) {
+      if (reqId !== reqIdRef.current) return;
       setError(err instanceof Error ? err.message : '加载失败，请确认后端已启动');
     } finally {
-      setLoading(false);
+      if (reqId === reqIdRef.current) setLoading(false);
     }
   };
 
+  // keyword 防抖 300ms，type 立即触发
   useEffect(() => {
-    void load();
-  }, []);
-
-  const filtered = useMemo(() => {
-    const kw = keyword.trim().toLowerCase();
-    return items.filter((it) => {
-      const kwOk =
-        !kw ||
-        [it.description, it.color, it.type, it.category, it.locationTips]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase()
-          .includes(kw);
-      const typeOk = type === '全部' || it.type === type;
-      return kwOk && typeOk;
-    });
-  }, [items, keyword, type]);
+    const t = window.setTimeout(() => void load(keyword, type), 300);
+    return () => window.clearTimeout(t);
+  }, [keyword, type]);
 
   return (
     <div className="animate-fade-up space-y-6">
@@ -58,7 +53,7 @@ export default function HallPage() {
       {error && (
         <div className="flex items-center justify-between gap-3 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600">
           <span>{error}</span>
-          <button type="button" onClick={() => void load()} className="shrink-0 rounded-full bg-rose-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-rose-700">
+          <button type="button" onClick={() => void load(keyword, type)} className="shrink-0 rounded-full bg-rose-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-rose-700">
             重试
           </button>
         </div>
@@ -105,7 +100,7 @@ export default function HallPage() {
             <SkeletonCard key={i} />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : items.length === 0 ? (
         <EmptyState
           title={error ? '加载失败' : '没有找到相关失物'}
           desc={error ? '请确认后端已启动（npm run dev）' : '换个关键词或类型试试，也可以去发布你拾到的物品'}
@@ -117,8 +112,8 @@ export default function HallPage() {
         />
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filtered.map((it) => (
-            <ItemCard key={it.id} item={it} onChanged={() => void load()} />
+          {items.map((it) => (
+            <ItemCard key={it.id} item={it} onChanged={() => void load(keyword, type)} />
           ))}
         </div>
       )}

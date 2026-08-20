@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { Spinner } from '../components/LoadingSpinner';
 import { useToast } from '../components/Toast';
 import { api, type PublicItem } from '../lib/api';
@@ -17,10 +17,14 @@ interface DoneData {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** 轮询物品详情直到 AI 分析结束（最多 30 秒），返回最终物品 */
-async function waitAiResult(id: string): Promise<PublicItem & { place: string }> {
+/** 轮询物品详情直到 AI 分析结束（最多 30 秒），返回最终物品；isCancelled 为真时提前退出 */
+async function waitAiResult(
+  id: string,
+  isCancelled: () => boolean
+): Promise<(PublicItem & { place: string }) | null> {
   const deadline = Date.now() + 30000;
   for (;;) {
+    if (isCancelled()) return null;
     const { item } = await api.itemDetail(id);
     const cur = item as PublicItem & { place: string };
     if (!cur.aiStatus || cur.aiStatus !== 'processing') return cur;
@@ -32,6 +36,15 @@ async function waitAiResult(id: string): Promise<PublicItem & { place: string }>
 export default function PublishPage() {
   const { show } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
+  const cancelledRef = useRef(false);
+
+  // 组件卸载（如切换路由）时置位，让进行中的轮询提前退出，避免在已卸载组件上更新状态
+  useEffect(() => {
+    cancelledRef.current = false;
+    return () => {
+      cancelledRef.current = true;
+    };
+  }, []);
 
   const [image, setImage] = useState('');
   const [place, setPlace] = useState('');
@@ -100,11 +113,13 @@ export default function PublishPage() {
       });
       // 2. 后端已自动触发 AI 分析 → 轮询等待结果
       setPhase('analyzing');
-      const finalItem = await waitAiResult(item.id);
+      const finalItem = await waitAiResult(item.id, () => cancelledRef.current);
+      if (cancelledRef.current || !finalItem) return; // 组件已卸载，停止后续状态更新
       setDone({ item: finalItem });
       setPhase('done');
       window.scrollTo({ top: 0 });
     } catch (err) {
+      if (cancelledRef.current) return;
       setPhase('form');
       setError(err instanceof Error ? err.message : '发布失败，请重试');
     }

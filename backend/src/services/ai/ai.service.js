@@ -94,6 +94,11 @@ function resolveChain() {
   return chain;
 }
 
+/** 返回当前 AI_PROVIDER 对应的调用链路（供状态接口复用，避免重复硬编码） */
+export function getActiveChain() {
+  return resolveChain();
+}
+
 /**
  * AIService 统一入口：输入图片，输出识别标签
  *

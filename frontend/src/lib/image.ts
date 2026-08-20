@@ -73,8 +73,14 @@ export function imageSrc(item: { imageUrl?: string; id: string; type: string }):
   return itemPlaceholder(item);
 }
 
-/** 压缩图片为 dataURL（默认最长边 900px），避免请求体过大 */
-export function downscaleImage(file: File, maxSize = 900, quality = 0.82): Promise<string> {
+/**
+ * 压缩图片为 dataURL，避免请求体过大。
+ * - 默认最长边 1000px
+ * - 含透明通道的 PNG 保留为 PNG（避免转 JPEG 后透明区域变黑底，证件类失物尤其重要）
+ * - 不透明图片转 JPEG，并按目标体积自动降质量，最终尽量控制在 ~900KB 内
+ */
+export function downscaleImage(file: File, maxSize = 1000): Promise<string> {
+  const targetBytes = 900 * 1024;
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
@@ -93,7 +99,21 @@ export function downscaleImage(file: File, maxSize = 900, quality = 0.82): Promi
       }
       ctx.drawImage(img, 0, 0, w, h);
       URL.revokeObjectURL(url);
-      resolve(canvas.toDataURL('image/jpeg', quality));
+
+      const isPng = file.type === 'image/png';
+      if (isPng && hasTransparency(ctx, w, h)) {
+        // 透明 PNG：保留 PNG 编码，避免透明区域被填成黑色
+        resolve(canvas.toDataURL('image/png'));
+        return;
+      }
+      // 不透明图片：JPEG 逐步降质量，直到体积达标或触底
+      let quality = 0.85;
+      let dataUrl = canvas.toDataURL('image/jpeg', quality);
+      while (dataUrlBytes(dataUrl) > targetBytes && quality > 0.5) {
+        quality -= 0.1;
+        dataUrl = canvas.toDataURL('image/jpeg', quality);
+      }
+      resolve(dataUrl);
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
@@ -101,4 +121,26 @@ export function downscaleImage(file: File, maxSize = 900, quality = 0.82): Promi
     };
     img.src = url;
   });
+}
+
+/** 采样若干像素判断图片是否含透明区域 */
+function hasTransparency(ctx: CanvasRenderingContext2D, w: number, h: number): boolean {
+  try {
+    const { data } = ctx.getImageData(0, 0, w, h);
+    // 每隔若干像素采样 alpha 通道，命中一处透明即认为含透明
+    const step = Math.max(4, Math.floor(data.length / 4 / 4000)) * 4;
+    for (let i = 3; i < data.length; i += step) {
+      if (data[i] < 250) return true;
+    }
+  } catch {
+    // 跨域等原因无法读取像素时，保守按不透明处理
+  }
+  return false;
+}
+
+/** 估算 dataURL 中图片的字节数（base64 部分） */
+function dataUrlBytes(dataUrl: string): number {
+  const comma = dataUrl.indexOf(',');
+  const b64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
+  return Math.floor((b64.length * 3) / 4);
 }

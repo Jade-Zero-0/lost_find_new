@@ -58,8 +58,8 @@ export async function uploadItem(req, res, next) {
       aiStatus: 'processing'
     });
 
-    // 4. 自动触发 AI 分析（后台异步；失败不中断）
-    runAiAnalysis(item.id, image).catch((err) => {
+    // 4. 自动触发 AI 分析（后台异步；失败不中断；相同图片命中缓存则复用）
+    runAiAnalysis(item.id, image, hash).catch((err) => {
       console.warn('[ai] 后台 AI 分析任务异常:', err && err.message ? err.message : err);
     });
 

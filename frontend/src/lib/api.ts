@@ -181,8 +181,13 @@ export const api = {
     );
   },
 
-  lostItems() {
-    return request<{ items: PublicItem[] }>('/api/lost-items');
+  lostItems(params?: { keyword?: string; type?: string; status?: string }) {
+    const qs = new URLSearchParams();
+    if (params?.keyword) qs.set('keyword', params.keyword);
+    if (params?.type) qs.set('type', params.type);
+    if (params?.status) qs.set('status', params.status);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return request<{ items: PublicItem[] }>(`/api/lost-items${suffix}`);
   },
 
   claim(input: { itemId: string; note: string }) {
