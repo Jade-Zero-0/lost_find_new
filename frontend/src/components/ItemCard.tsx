@@ -64,20 +64,22 @@ export default function ItemCard({
     }
   };
 
-  // 进入详情页（图片区与描述区可点击；底部认领按钮不触发跳转）
+  // 进入详情页：整张卡片可点击；内部的认领按钮通过 stopPropagation 阻止冒泡
   const goDetail = () => navigate(`/items/${item.id}`);
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl">
-      <div
+    <>
+      <article
         role="button"
         tabIndex={0}
         onClick={goDetail}
         onKeyDown={(e) => {
           if (e.key === 'Enter') goDetail();
         }}
-        className="relative aspect-[3/2] cursor-pointer overflow-hidden bg-slate-100"
+        title="点击查看物品详情"
+        className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl"
       >
+        <div className="relative aspect-[3/2] overflow-hidden bg-slate-100">
         <img
           src={imageSrc(item)}
           alt={item.description}
@@ -108,10 +110,7 @@ export default function ItemCard({
           />
           <span>{item.color}</span>
         </div>
-        <p
-          onClick={goDetail}
-          className="line-clamp-2 flex-1 cursor-pointer text-sm leading-relaxed text-slate-500 transition hover:text-slate-700"
-        >
+        <p className="line-clamp-2 flex-1 text-sm leading-relaxed text-slate-500">
           {item.description}
         </p>
 
@@ -152,18 +151,18 @@ export default function ItemCard({
         )}
 
         <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-          <button
-            type="button"
-            onClick={goDetail}
-            className="text-xs font-medium text-slate-400 transition hover:text-indigo-600"
-          >
-            {timeAgo(item.createdAt)} · {item.pickerName} · 查看详情 ›
-          </button>
+          <span className="text-xs font-medium text-slate-400">
+            {timeAgo(item.createdAt)} · {item.pickerName}
+            <span className="ml-1 text-indigo-500 transition group-hover:text-indigo-600">· 查看详情 ›</span>
+          </span>
           {!own && item.status === 'OPEN' ? (
             <button
               type="button"
               disabled={claiming}
-              onClick={openClaim}
+              onClick={(e) => {
+                e.stopPropagation();
+                openClaim();
+              }}
               className="rounded-full bg-blue-600 px-3.5 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {claiming ? '提交中…' : '申请认领'}
@@ -174,7 +173,8 @@ export default function ItemCard({
             </span>
           )}
         </div>
-      </div>
+        </div>
+      </article>
 
       <Modal
         open={confirmOpen}
@@ -208,6 +208,6 @@ export default function ItemCard({
           </div>
         </div>
       </Modal>
-    </article>
+    </>
   );
 }

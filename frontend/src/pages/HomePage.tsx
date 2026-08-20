@@ -106,7 +106,7 @@ export default function HomePage() {
         {FEATURES.map((f, idx) => (
           <div
             key={f.title}
-            className="animate-fade-up rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+            className="animate-fade-up rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
             style={{ animationDelay: `${idx * 90}ms` }}
           >
             <div
