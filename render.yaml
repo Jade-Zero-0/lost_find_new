@@ -4,7 +4,11 @@ services:
     runtime: node
     region: singapore
     plan: free
-    buildCommand: npm install && npm run build
+    # 显式安装 devDependencies：NODE_ENV=production 下 npm install 默认跳过 dev，
+    # 而前端构建工具 vite 属于 devDependency，故用 --include=dev 确保能构建。
+    # 先清 lockfile/node_modules：规避 npm optional 依赖 bug(npm/cli#4828)，
+    # 否则 Tailwind v4 的原生模块 @tailwindcss/oxide 会漏装导致构建失败。
+    buildCommand: rm -rf node_modules package-lock.json backend/package-lock.json && npm install --include=dev && npm run build
     startCommand: npm start
     autoDeploy: true
     healthCheckPath: /api/health
@@ -12,7 +16,7 @@ services:
     # 上传图片仍是容器本地文件，重启后会从仓库 backend/uploads 重新填充种子图片。
     envVars:
       - key: NODE_VERSION
-        value: "18"
+        value: "20"
       - key: HOST
         value: "0.0.0.0"
       - key: PORT
