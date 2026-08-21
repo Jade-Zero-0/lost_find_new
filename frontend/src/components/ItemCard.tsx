@@ -100,6 +100,9 @@ export default function ItemCard({
             {STATUS_TEXT[item.status] ?? item.status}
           </span>
         )}
+        <span className="absolute bottom-3 right-3 flex items-center gap-1 rounded-full bg-slate-800/70 px-2.5 py-1 text-[11px] font-medium text-white shadow-sm backdrop-blur-sm">
+          点击查看详情 →
+        </span>
       </div>
 
       <div className="flex flex-1 flex-col gap-2 p-4">
@@ -153,7 +156,7 @@ export default function ItemCard({
         <div className="flex items-center justify-between border-t border-slate-100 pt-3">
           <span className="text-xs font-medium text-slate-400">
             {timeAgo(item.createdAt)} · {item.pickerName}
-            <span className="ml-1 text-indigo-500 transition group-hover:text-indigo-600">· 查看详情 ›</span>
+            <span className="ml-1 font-semibold text-indigo-600">· 查看详情 ›</span>
           </span>
           {!own && item.status === 'OPEN' ? (
             <button
