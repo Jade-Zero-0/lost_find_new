@@ -59,8 +59,19 @@ export async function ensureSeedData() {
   await seedUploads();
 }
 
-/** MongoDB 首启灌种：集合为空则写入仓库种子数据（不覆盖已有数据） */
+/**
+ * MongoDB 首启灌种：集合为空则写入仓库种子数据（不覆盖已有数据）。
+ *
+ * 默认关闭（SEED_ON_EMPTY!=='true'）：
+ * 生产/演示环境清空数据后，服务重启（免费实例休眠唤醒、重新部署）不应再把
+ * 仓库里的历史测试数据（如「永雏塔菲」「aa」等）自动灌回，否则「删了又复活」。
+ * 需要用仓库种子初始化时（如本地开发），显式设置 SEED_ON_EMPTY=true 即可。
+ * 注意：演示账号由独立的 ensureSeedUsers() 兜底创建，不依赖此处，登录不受影响。
+ */
 async function seedMongo() {
+  if ((process.env.SEED_ON_EMPTY || 'false').toLowerCase() !== 'true') {
+    return; // 默认不自动灌种，避免清空后重启数据复活
+  }
   const seedDir = getSeedDir();
   for (const { store, file, isEmpty } of MONGO_SEEDS) {
     let current;
@@ -87,6 +98,9 @@ async function seedMongo() {
 
 /** 填充 JSON 数据文件到 DATA_DIR */
 async function seedJsonFiles() {
+  if ((process.env.SEED_ON_EMPTY || 'false').toLowerCase() !== 'true') {
+    return; // 与 Mongo 一致：默认不自动灌种，避免清空后重启数据复活
+  }
   const dataDir = getDataDir();
   const seedDir = getSeedDir();
   if (path.resolve(dataDir) === path.resolve(seedDir)) return;
