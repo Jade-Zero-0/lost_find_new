@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 
 /**
  * Cloudflare R2 对象存储封装（S3 兼容 API）。
@@ -84,4 +84,59 @@ export async function deleteFromR2(key) {
   } catch {
     // 对象可能不存在或删除失败，忽略
   }
+}
+
+/* ─── 容量保护 ────────────────────────────────────────────
+ * 免费额度 10GB，设 9GB 为硬上限。
+ * 超过即拒绝新上传，绝对不产生任何费用。
+ * 使用量通过 ListObjectsV2 遍历累加，结果缓存 5 分钟。
+ * ──────────────────────────────────────────────────────── */
+
+const CAPACITY_LIMIT_BYTES = 9 * 1024 * 1024 * 1024; // 9 GB
+const USAGE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 分钟
+
+let usageCache = { size: 0, expiresAt: 0 };
+
+/**
+ * 查询 R2 桶当前已用容量（字节）。结果缓存 5 分钟避免频繁请求。
+ */
+export async function getR2Usage() {
+  const now = Date.now();
+  if (usageCache.expiresAt > now) return usageCache.size;
+
+  const c = getR2Config();
+  const client = getClient();
+  let totalSize = 0;
+  let continuationToken;
+
+  do {
+    const resp = await client.send(
+      new ListObjectsV2Command({
+        Bucket: c.bucket,
+        ContinuationToken: continuationToken,
+        MaxKeys: 1000
+      })
+    );
+    for (const obj of resp.Contents || []) {
+      totalSize += obj.Size || 0;
+    }
+    continuationToken = resp.IsTruncated ? resp.NextContinuationToken : undefined;
+  } while (continuationToken);
+
+  usageCache = { size: totalSize, expiresAt: now + USAGE_CACHE_TTL_MS };
+  return totalSize;
+}
+
+/**
+ * 检查是否还有可用容量。
+ * @returns {{ ok: boolean, used: number, limit: number }}
+ */
+export async function checkR2Capacity() {
+  const used = await getR2Usage();
+  return { ok: used < CAPACITY_LIMIT_BYTES, used, limit: CAPACITY_LIMIT_BYTES };
+}
+
+/** 上传成功后更新本地缓存（增量，无需等待缓存过期） */
+export function bumpR2Usage(bytes) {
+  usageCache.size += bytes;
 }

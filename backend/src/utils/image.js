@@ -2,7 +2,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { isR2Enabled, uploadToR2, deleteFromR2 } from './r2-store.js';
+import { isR2Enabled, uploadToR2, deleteFromR2, checkR2Capacity, bumpR2Usage } from './r2-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -59,8 +59,17 @@ export async function saveBase64Image(dataUrl) {
   const hash = createHash('sha256').update(buffer).digest('hex');
 
   if (isR2Enabled()) {
+    // 容量保护：超过 9GB 拒绝新上传，绝不产生任何费用
+    const capacity = await checkR2Capacity();
+    if (!capacity.ok) {
+      throw Object.assign(
+        new Error('图库存储已满（接近 9GB 上限），请联系管理员清理或扩容'),
+        { status: 507 }
+      );
+    }
     // R2 模式：上传对象存储，url 为完整公网地址
     const url = await uploadToR2(filename, buffer, MIME_MAP[kind] || 'image/jpeg');
+    bumpR2Usage(buffer.length); // 增量更新缓存
     return { filename, url, hash };
   }
 
